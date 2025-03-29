@@ -1,4 +1,4 @@
-# 🎵 Shanks - Bot Discord de Musique 🤖
+# 🎸 Soolking - Bot Discord 🤖
 
 ![Status](https://img.shields.io/badge/status-actif-brightgreen)
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
