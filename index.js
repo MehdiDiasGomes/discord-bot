@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import { Player } from 'discord-player';
 import { YoutubeiExtractor } from "discord-player-youtubei"
+import 'dotenv/config';
 
 const client = new Client({
     intents: [
@@ -142,4 +143,4 @@ client.on("messageCreate", async (message) => {
 });
 
 // Remplacez par une variable d'environnement dans un environnement de production
-client.login("MTAxNzAwMDczMTc5MTg1MTYwMg.GZTW2Q.ArtkwetL4J15Zp583-BD3X6KbIgyx-v2Vo2Hxc");
+client.login(process.env.BOT_TOKEN);
