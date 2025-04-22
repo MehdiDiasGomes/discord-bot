@@ -1,7 +1,7 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import { Player } from 'discord-player';
 import { YoutubeiExtractor } from "discord-player-youtubei"
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import 'dotenv/config';
 
 const client = new Client({
