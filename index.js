@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { Player } from 'discord-player';
 import { YoutubeiExtractor } from "discord-player-youtubei"
