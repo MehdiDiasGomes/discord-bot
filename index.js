@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import { Player } from 'discord-player';
-import { YouTubeExtractor } from "@discord-player/extractor";
+import extractor from "@discord-player/extractor";
+const { YouTubeExtractor } = extractor;
 import 'dotenv/config';
 
 const client = new Client({
