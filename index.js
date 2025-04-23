@@ -1,8 +1,11 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import { Player } from 'discord-player';
-import { YoutubeiExtractor } from "discord-player-youtubei"
+import { YoutubeiExtractor } from "discord-player-youtubei";
 import * as crypto from 'crypto';
 import 'dotenv/config';
+
+// Définir crypto globalement
+global.crypto = crypto;
 
 const client = new Client({
     intents: [
@@ -17,11 +20,12 @@ const client = new Client({
 const player = new Player(client);
 
 // Initialiser le player et enregistrer les extracteurs
-player.extractors.register(YoutubeiExtractor, {})
+player.extractors.register(YoutubeiExtractor, {});
 
 // Initialiser les événements
 player.events.on('playerError', (queue, error) => {
     console.error('Erreur du lecteur:', error);
+    console.error('Détails de la queue:', queue);
 });
 
 player.events.on('error', (queue, error) => {
@@ -38,10 +42,8 @@ client.once("ready", () => {
 });
 
 client.on("messageCreate", async (message) => {
-    // Ignore les messages des bots
     if (message.author.bot) return;
 
-    // Commande de déconnexion
     if (message.content === "!disconnect") {
         try {
             const queue = player.nodes.get(message.guildId);
@@ -58,7 +60,6 @@ client.on("messageCreate", async (message) => {
         }
     }
 
-    // Commande next pour passer à la musique suivante
     if (message.content === "!next") {
         try {
             const queue = player.nodes.get(message.guildId);
@@ -79,21 +80,18 @@ client.on("messageCreate", async (message) => {
         }
     }
 
-    // Commande play
     if (message.content.startsWith("!play")) {
         const args = message.content.split(" ");
         const query = args.slice(1).join(" ");
 
         if (!query) return message.reply("❌ Donne-moi un lien YouTube ou un terme de recherche !");
 
-        // Vérifier si l'utilisateur est dans un salon vocal
         const voiceChannel = message.member.voice.channel;
         if (!voiceChannel) return message.reply("❌ Tu dois être dans un salon vocal pour utiliser cette commande !");
 
         try {
             const searchMessage = await message.reply(`🔍 Recherche en cours pour: **${query}**...`);
 
-            // Créer une file d'attente ou utiliser celle existante
             const queue = player.nodes.create(message.guild, {
                 metadata: {
                     channel: message.channel,
@@ -103,36 +101,30 @@ client.on("messageCreate", async (message) => {
                 selfDeaf: true,
                 volume: 80,
                 leaveOnEmpty: true,
-                leaveOnEmptyCooldown: 60000, // 1 minute
+                leaveOnEmptyCooldown: 60000,
                 leaveOnEnd: true,
-                leaveOnEndCooldown: 60000, // 1 minute
+                leaveOnEndCooldown: 60000,
             });
 
-            // Se connecter au salon vocal si ce n'est pas déjà fait
             if (!queue.connection) {
                 await queue.connect(voiceChannel);
             }
 
-            // Recherche de la musique - essayer avec youtube comme moteur de recherche
             const result = await player.search(query, {
                 requestedBy: message.author,
-                searchEngine: "youtube" // Utiliser le moteur de recherche standard YouTube
+                searchEngine: "youtube"
             });
-
-            console.log("Résultat de la recherche:", result);
 
             if (!result || !result.tracks || !result.tracks.length) {
                 await searchMessage.edit("❌ Aucune musique trouvée !");
                 return;
             }
 
-            // Ajouter la piste à la file d'attente
             const track = result.tracks[0];
             await queue.addTrack(track);
 
             await searchMessage.edit(`✅ **${track.title}** a été ajouté à la file d'attente!`);
 
-            // Démarrer la lecture si nécessaire
             if (!queue.isPlaying()) {
                 await queue.node.play();
             }
@@ -143,5 +135,4 @@ client.on("messageCreate", async (message) => {
     }
 });
 
-// Remplacez par une variable d'environnement dans un environnement de production
 client.login(process.env.BOT_TOKEN);
