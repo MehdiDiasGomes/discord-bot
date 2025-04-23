@@ -1,146 +1,106 @@
 import { Player } from 'discord-player';
-import { YoutubeiExtractor } from "discord-player-youtubei";
-import { Client, GatewayIntentBits } from 'discord.js';
+import { YoutubeiExtractor } from 'discord-player-youtubei';
+import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import 'dotenv/config';
 
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ],
+  partials: [Partials.Channel]
 });
 
-// Créer l'instance du Player
 const player = new Player(client);
+player.extractors.register(YoutubeiExtractor, {});
 
-// Initialiser le player et enregistrer les extracteurs
-player.extractors.register(YoutubeiExtractor, {})
+player.events.on('playerStart', (queue, track) => {
+  queue.metadata.channel.send(`🎶 Lecture en cours : **${track.title}**`);
+});
 
-// Initialiser les événements
 player.events.on('playerError', (queue, error) => {
-    console.error('Erreur du lecteur:', error);
+  queue.metadata.channel.send(`❌ Erreur lors de la lecture : ${error.message}`);
+  console.error('Erreur du lecteur:', error);
 });
 
 player.events.on('error', (queue, error) => {
-    console.error('Erreur de la queue:', error);
+  queue.metadata.channel.send(`❌ Erreur de la queue : ${error.message}`);
+  console.error('Erreur de la queue:', error);
 });
 
-// Événement pour indiquer le début d'une piste
-player.events.on('playerStart', (queue, track) => {
-    queue.metadata.channel.send(`🎵 Lecture en cours: **${track.title}** - ${track.author}`);
+client.once('ready', () => {
+  console.log(`✅ Connecté en tant que ${client.user.tag}`);
 });
 
-client.once("ready", () => {
-    console.log(`✅ Connecté en tant que ${client.user.tag}`);
-});
+client.on('messageCreate', async (message) => {
+  if (message.author.bot || !message.guild) return;
 
-client.on("messageCreate", async (message) => {
-    // Ignore les messages des bots
-    if (message.author.bot) return;
+  const prefix = '!';
+  if (!message.content.startsWith(prefix)) return;
 
-    // Commande de déconnexion
-    if (message.content === "!disconnect") {
-        try {
-            const queue = player.nodes.get(message.guildId);
+  const [cmd, ...args] = message.content.slice(prefix.length).trim().split(/\s+/);
 
-            if (queue) {
-                queue.delete();
-                return message.reply("👋 Allez salam !");
-            } else {
-                return message.reply("❌ Je ne suis pas connecté à un salon vocal !");
-            }
-        } catch (error) {
-            console.error("Erreur lors de la déconnexion:", error);
-            return message.reply("❌ Une erreur s'est produite lors de la déconnexion!");
-        }
+  // Commande !play
+  if (cmd === 'play') {
+    const query = args.join(' ');
+    if (!query) return message.reply('❌ Donne-moi un lien ou un terme de recherche !');
+
+    const voiceChannel = message.member.voice.channel;
+    if (!voiceChannel) return message.reply('❌ Tu dois être dans un salon vocal !');
+
+    const searchMsg = await message.reply(`🔍 Recherche : **${query}**...`);
+
+    // Crée ou récupère la queue
+    const queue = player.nodes.create(message.guild, {
+      metadata: { channel: message.channel },
+      leaveOnEmpty: true,
+      leaveOnEmptyCooldown: 60_000,
+      leaveOnEnd: true,
+      leaveOnEndCooldown: 60_000,
+      volume: 80,
+      selfDeaf: true
+    });
+
+    try {
+      if (!queue.connection) await queue.connect(voiceChannel);
+
+      const result = await player.search(query, {
+        requestedBy: message.author,
+        searchEngine: 'youtube'
+      });
+
+      if (!result.hasTracks()) {
+        await searchMsg.edit('❌ Aucun résultat trouvé.');
+        return;
+      }
+
+      await queue.addTrack(result.tracks[0]);
+      await searchMsg.edit(`✅ **${result.tracks[0].title}** ajouté à la file d'attente !`);
+
+      if (!queue.isPlaying()) await queue.node.play();
+    } catch (err) {
+      console.error(err);
+      await searchMsg.edit('❌ Erreur lors de la lecture.');
     }
+  }
 
-    // Commande next pour passer à la musique suivante
-    if (message.content === "!next") {
-        try {
-            const queue = player.nodes.get(message.guildId);
+  // Commande !next
+  if (cmd === 'next') {
+    const queue = player.nodes.get(message.guild.id);
+    if (!queue || !queue.isPlaying()) return message.reply('❌ Rien à passer !');
+    await queue.node.skip();
+    message.reply('⏭️ Musique suivante !');
+  }
 
-            if (!queue) {
-                return message.reply("❌ Je ne suis pas en train de jouer de la musique !");
-            }
-
-            if (queue.tracks.size === 0) {
-                return message.reply("❌ Il n'y a pas de musique suivante dans la file d'attente !");
-            }
-
-            await queue.node.skip();
-            return message.reply("⏭️ Musique suivante !");
-        } catch (error) {
-            console.error("Erreur lors du passage à la musique suivante:", error);
-            return message.reply("❌ Une erreur s'est produite lors du passage à la musique suivante!");
-        }
-    }
-
-    // Commande play
-    if (message.content.startsWith("!play")) {
-        const args = message.content.split(" ");
-        const query = args.slice(1).join(" ");
-
-        if (!query) return message.reply("❌ Donne-moi un lien YouTube ou un terme de recherche !");
-
-        // Vérifier si l'utilisateur est dans un salon vocal
-        const voiceChannel = message.member.voice.channel;
-        if (!voiceChannel) return message.reply("❌ Tu dois être dans un salon vocal pour utiliser cette commande !");
-
-        try {
-            const searchMessage = await message.reply(`🔍 Recherche en cours pour: **${query}**...`);
-
-            // Créer une file d'attente ou utiliser celle existante
-            const queue = player.nodes.create(message.guild, {
-                metadata: {
-                    channel: message.channel,
-                    client: message.client,
-                    requestedBy: message.author
-                },
-                selfDeaf: true,
-                volume: 80,
-                leaveOnEmpty: true,
-                leaveOnEmptyCooldown: 60000, // 1 minute
-                leaveOnEnd: true,
-                leaveOnEndCooldown: 60000, // 1 minute
-            });
-
-            // Se connecter au salon vocal si ce n'est pas déjà fait
-            if (!queue.connection) {
-                await queue.connect(voiceChannel);
-            }
-
-            // Recherche de la musique - essayer avec youtube comme moteur de recherche
-            const result = await player.search(query, {
-                requestedBy: message.author,
-                searchEngine: "youtube" // Utiliser le moteur de recherche standard YouTube
-            });
-
-            console.log("Résultat de la recherche:", result);
-
-            if (!result || !result.tracks || !result.tracks.length) {
-                await searchMessage.edit("❌ Aucune musique trouvée !");
-                return;
-            }
-
-            // Ajouter la piste à la file d'attente
-            const track = result.tracks[0];
-            await queue.addTrack(track);
-
-            await searchMessage.edit(`✅ **${track.title}** a été ajouté à la file d'attente!`);
-
-            // Démarrer la lecture si nécessaire
-            if (!queue.isPlaying()) {
-                await queue.node.play();
-            }
-        } catch (error) {
-            console.error("Erreur lors de la lecture:", error);
-            message.reply(`❌ Une erreur s'est produite: ${error.message}`);
-        }
-    }
+  // Commande !disconnect
+  if (cmd === 'disconnect') {
+    const queue = player.nodes.get(message.guild.id);
+    if (!queue) return message.reply('❌ Je ne suis pas connecté !');
+    queue.delete();
+    message.reply('👋 Déconnecté !');
+  }
 });
 
-// Remplacez par une variable d'environnement dans un environnement de production
 client.login(process.env.BOT_TOKEN);
