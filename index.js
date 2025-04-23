@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+if (!globalThis.crypto) globalThis.crypto = crypto;
 import { Player } from 'discord-player';
 import { YoutubeiExtractor } from 'discord-player-youtubei';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
