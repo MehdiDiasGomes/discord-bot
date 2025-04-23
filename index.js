@@ -16,9 +16,6 @@ const client = new Client({
 // Créer l'instance du Player
 const player = new Player(client);
 
-// Initialiser le player et enregistrer les extracteurs
-await player.extractors.register(YouTubeExtractor);
-
 // Initialiser les événements
 player.events.on('playerError', (queue, error) => {
     console.error('Erreur du lecteur:', error);
@@ -33,10 +30,16 @@ player.events.on('playerStart', (queue, track) => {
     queue.metadata.channel.send(`🎵 Lecture en cours: **${track.title}** - ${track.author}`);
 });
 
-client.once("ready", () => {
+client.once("ready", async () => {
     console.log(`✅ Connecté en tant que ${client.user.tag}`);
-});
 
+    try {
+        await player.extractors.register(YouTubeExtractor);
+        console.log("✅ Extracteur YouTube enregistré avec succès !");
+    } catch (err) {
+        console.error("❌ Erreur lors de l'enregistrement de l'extracteur :", err);
+    }
+});
 client.on("messageCreate", async (message) => {
     // Ignore les messages des bots
     if (message.author.bot) return;
