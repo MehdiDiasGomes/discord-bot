@@ -34,12 +34,20 @@ client.once("ready", async () => {
     console.log(`✅ Connecté en tant que ${client.user.tag}`);
 
     try {
+        const YouTubeExtractor = extractor?.YouTubeExtractor || extractor?.default?.YouTubeExtractor;
+
+        if (!YouTubeExtractor) {
+            console.error("❌ Impossible de charger YouTubeExtractor !");
+            return;
+        }
+
         await player.extractors.register(YouTubeExtractor);
         console.log("✅ Extracteur YouTube enregistré avec succès !");
     } catch (err) {
         console.error("❌ Erreur lors de l'enregistrement de l'extracteur :", err);
     }
 });
+
 client.on("messageCreate", async (message) => {
     // Ignore les messages des bots
     if (message.author.bot) return;
