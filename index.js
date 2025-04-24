@@ -1,5 +1,5 @@
 import { Player } from 'discord-player';
-import { YoutubeiExtractor } from 'discord-player-youtubei';
+import { SoundCloudExtractor }  from '@discord-player/extractor';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import 'dotenv/config';
 
@@ -13,8 +13,8 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-const player = new Player(client);
-player.extractors.register(YoutubeiExtractor, {});
+const player = useMainPlayer();
+player.extractors.register(SoundCloudExtractor);
 
 player.events.on('playerStart', (queue, track) => {
   queue.metadata.channel.send(`🎶 Lecture en cours : **${track.title}**`);
